@@ -14,17 +14,19 @@ jobs:
       - name: 查看目录结构 & 安装 iOS 依赖
         run: |
           sudo gem install cocoapods
-          # 先查看当前目录结构，确认 iOS 子目录
+          # 先查看当前目录结构
           ls -la
-          # 尝试切换到 IReader 的 iOS 工程目录（优先 iosApp，其次 ios）
+          # 切换到 iOS 子目录
           cd iosApp || cd ios
+          # 查看 iOS 子目录下的文件，确认项目名
+          ls -la
           # 安装依赖
           pod install --repo-update
 
-      - name: 编译无签名 IPA
+      - name: 编译无签名 IPA（适配 .xcodeproj）
         run: |
-          # 仍在 iOS 子目录下执行编译
-          xcodebuild -workspace IReader.xcworkspace \
+          # 仍在 iOS 子目录下执行编译，改用 .xcodeproj
+          xcodebuild -project IReader.xcodeproj \
           -scheme "IReader" \
           -configuration Release \
           -destination 'generic/platform=iOS' \
@@ -37,7 +39,7 @@ jobs:
           # 回到项目根目录，打包编译产物
           cd ..
           mkdir -p Payload
-          # 适配 IReader 的编译产物路径
+          # 适配编译产物路径
           cp -r iosApp/build/Release-iphoneos/IReader.app Payload/ || cp -r ios/build/Release-iphoneos/IReader.app Payload/
           zip -r IReader_Troll.ipa Payload/
 
