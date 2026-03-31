@@ -1,43 +1,51 @@
-name: 编译 IReader 无签名 IPA
+name: 编译 IReader 无签名 IPA (Kotlin Multiplatform 官方方案)
 on:
-  workflow_dispatch: # 手动触发编译
+  workflow_dispatch:
 
 jobs:
   build-ipa:
     runs-on: macos-latest
     steps:
-      - name: 拉取代码（含子模块）
+      - name: 拉取代码
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      - name: 编译无签名 IPA（进入正确目录 iosApp）
+      - name: 配置 JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 清理 & 编译 Kotlin 共享代码 (iosArm64)
         run: |
-          sudo gem install cocoapods
-          # 进入正确的 iOS 工程目录：iosApp（不是 iosApp/iosApp）
+          chmod +x gradlew
+          # 编译 KMP 共享代码，生成 iOS 框架
+          ./gradlew :shared:compileKotlinIosArm64
+          # 或者如果模块结构不同，尝试：
+          # ./gradlew compileKotlinIosArm64
+
+      - name: 编译 iOS App (使用 Xcode 通用命令)
+        run: |
           cd iosApp
-          # 确认当前目录下的文件
-          ls -la
-          # 用 .xcodeproj 编译
-          xcodebuild -project iosApp.xcodeproj \
-          -scheme "iosApp" \
+          xcodebuild clean build \
+          -project iosApp.xcodeproj \
+          -scheme iosApp \
           -configuration Release \
           -destination 'generic/platform=iOS' \
-          clean build \
           CODE_SIGNING_ALLOWED=NO \
-          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGNING_REQUIRED=NO \
+          SKIP_PREVIEWS=YES \
+          BUILD_LIBRARY_FOR_DISTRIBUTION=YES
 
-      - name: 打包为 TrollStore 格式
+      - name: 打包为 TrollStore IPA
         run: |
-          # 回到根目录
-          cd ..
-          BUILD_DIR="iosApp/build/Release-iphoneos"
           mkdir -p Payload
-          cp -r $BUILD_DIR/iosApp.app Payload/
-          zip -r IReader_Troll.ipa Payload/
+          cp -r iosApp/build/Release-iphoneos/iosApp.app Payload/
+          zip -r IReader_KMP_Troll.ipa Payload/
 
-      - name: 上传 IPA 供下载
+      - name: 上传 IPA
         uses: actions/upload-artifact@v4
         with:
-          name: IReader-Troll-IPA
-          path: IReader_Troll.ipa
+          name: IReader-KMP-Troll-IPA
+          path: IReader_KMP_Troll.ipa
