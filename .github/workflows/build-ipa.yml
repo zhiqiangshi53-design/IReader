@@ -11,16 +11,19 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: 安装 iOS 依赖（切换到 iOS 工程目录）
+      - name: 查看目录结构 & 安装 iOS 依赖
         run: |
           sudo gem install cocoapods
-          # 切换到 iOS 工程目录（IReader 实际为 iosApp）
-          cd iosApp
+          # 先查看当前目录结构，确认 iOS 子目录
+          ls -la
+          # 尝试切换到 IReader 的 iOS 工程目录（优先 iosApp，其次 ios）
+          cd iosApp || cd ios
+          # 安装依赖
           pod install --repo-update
 
       - name: 编译无签名 IPA
         run: |
-          # 仍在 iosApp 目录下执行编译
+          # 仍在 iOS 子目录下执行编译
           xcodebuild -workspace IReader.xcworkspace \
           -scheme "IReader" \
           -configuration Release \
@@ -34,11 +37,12 @@ jobs:
           # 回到项目根目录，打包编译产物
           cd ..
           mkdir -p Payload
-          cp -r iosApp/build/Release-iphoneos/IReader.app Payload/
+          # 适配 IReader 的编译产物路径
+          cp -r iosApp/build/Release-iphoneos/IReader.app Payload/ || cp -r ios/build/Release-iphoneos/IReader.app Payload/
           zip -r IReader_Troll.ipa Payload/
 
       - name: 上传 IPA 供下载
         uses: actions/upload-artifact@v4
         with:
-          name: IReader-iOS-IPA
+          name: IReader-Troll-IPA
           path: IReader_Troll.ipa
