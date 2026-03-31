@@ -11,19 +11,17 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: 安装 iOS 依赖（进入真实 iosApp 目录）
+      - name: 安装依赖 & 编译（全程在 iosApp/iosApp 目录下）
         run: |
           sudo gem install cocoapods
-          # 进入真实的 iOS 工程目录
+          # 全程锁定在 iosApp/iosApp 目录
           cd iosApp/iosApp
-          # 安装依赖（存在 Podfile）
+          
+          # 1. 安装依赖，生成 .xcworkspace
           pod install --repo-update
-
-      - name: 编译无签名 IPA（使用真实项目文件和 Scheme）
-        run: |
-          # 进入 iOS 工程目录执行编译
-          cd iosApp/iosApp
-          xcodebuild -project iosApp.xcodeproj \
+          
+          # 2. 用 workspace 编译无签名 IPA
+          xcodebuild -workspace iosApp.xcworkspace \
           -scheme "iosApp" \
           -configuration Release \
           -destination 'generic/platform=iOS' \
@@ -33,9 +31,9 @@ jobs:
 
       - name: 打包为 TrollStore 格式
         run: |
-          # 定义编译产物路径
+          # 回到根目录，打包产物
+          cd ../..
           BUILD_DIR="iosApp/iosApp/build/Release-iphoneos"
-          # 打包
           mkdir -p Payload
           cp -r $BUILD_DIR/iosApp.app Payload/
           zip -r IReader_Troll.ipa Payload/
