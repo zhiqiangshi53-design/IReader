@@ -11,18 +11,37 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: 打印完整目录结构（关键调试步骤）
+      - name: 安装 iOS 依赖（进入真实 iosApp 目录）
         run: |
-          echo "=== 项目根目录结构 ==="
-          ls -la
-          # 遍历所有子目录，找到 iOS 相关文件夹
-          find . -type d -name "*ios*" -o -type d -name "*iOS*" | head -20
-          echo "=== 找到的 iOS 子目录内容 ==="
-          # 遍历找到的 iOS 子目录，打印其下的文件
-          for dir in $(find . -type d -name "*ios*" -o -type d -name "*iOS*"); do
-            echo "目录: $dir"
-            ls -la "$dir"
-          done
+          sudo gem install cocoapods
+          # 进入真实的 iOS 工程目录
+          cd iosApp/iosApp
+          # 安装依赖（存在 Podfile）
+          pod install --repo-update
 
-      - name: 临时跳过编译（先看日志）
-        run: echo "已跳过编译，等待根据日志调整脚本"
+      - name: 编译无签名 IPA（使用真实项目文件和 Scheme）
+        run: |
+          # 进入 iOS 工程目录执行编译
+          cd iosApp/iosApp
+          xcodebuild -project iosApp.xcodeproj \
+          -scheme "iosApp" \
+          -configuration Release \
+          -destination 'generic/platform=iOS' \
+          clean build \
+          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGNING_REQUIRED=NO
+
+      - name: 打包为 TrollStore 格式
+        run: |
+          # 定义编译产物路径
+          BUILD_DIR="iosApp/iosApp/build/Release-iphoneos"
+          # 打包
+          mkdir -p Payload
+          cp -r $BUILD_DIR/iosApp.app Payload/
+          zip -r IReader_Troll.ipa Payload/
+
+      - name: 上传 IPA 供下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: IReader-Troll-IPA
+          path: IReader_Troll.ipa
